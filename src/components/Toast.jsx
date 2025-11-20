@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import React, { useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 
-export default function Toast({ message, onClose }) {
+function Toast({ message, onClose }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -17,3 +17,5 @@ export default function Toast({ message, onClose }) {
     document.body
   );
 }
+
+export default memo(Toast);

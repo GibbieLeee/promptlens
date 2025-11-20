@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Copy, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Copy, ChevronDown, ChevronUp, Loader2, Heart } from "lucide-react";
 
-function Message({ type = "system", imageSrc, prompt, status, onCopy, onExpand }) {
+function Message({ type = "system", prompt, status, onCopy, onExpand, onToggleSave, isSaved }) {
   const [expanded, setExpanded] = useState(false);
   const messageRef = useRef(null);
 
-  const isUser = type === "user";
   const isSystem = type === "system";
   const isGenerating = status === "generating";
   const isStopped = status === "stopped";
   const isError = status === "error";
+  const isDone = status === "done";
 
   const handleCopy = useCallback((e) => {
     e.preventDefault();
@@ -49,18 +49,31 @@ function Message({ type = "system", imageSrc, prompt, status, onCopy, onExpand }
     e.currentTarget.blur();
   }, []);
 
+  const handleSaveToggle = useCallback((e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onToggleSave) {
+      onToggleSave();
+    }
+    e.currentTarget.blur();
+  }, [onToggleSave]);
+
   return (
     <div
       ref={messageRef}
-      className={`message ${isUser ? "user" : "system"}`}
+      className={`message ${isSystem ? "system" : "user"}`}
     >
-      {/* Превью только у пользователя */}
-      {isUser && imageSrc && (
-        <img
-          src={imageSrc}
-          alt="preview"
-          className="preview"
-        />
+      {/* Кнопка сохранения справа сверху снаружи карточки */}
+      {isSystem && onToggleSave && isDone && (
+        <button
+          className={`message-save-btn ${isSaved ? "saved" : ""}`}
+          onClick={handleSaveToggle}
+          onMouseDown={(e) => e.preventDefault()}
+          aria-label={isSaved ? "Remove from saved" : "Save prompt"}
+          title={isSaved ? "Remove from saved" : "Save prompt"}
+        >
+          <Heart size={20} className={isSaved ? "filled" : ""} />
+        </button>
       )}
 
       {/* Блок сообщения */}

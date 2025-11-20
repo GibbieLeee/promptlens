@@ -1,8 +1,8 @@
 // src/components/ImageUploader.jsx
-import React from 'react';
+import React, { memo } from 'react';
 import { Upload } from 'lucide-react';
 
-export default function ImageUploader({onFile}) {
+function ImageUploader({onFile}) {
   // accepts file, validate externally
   return (
     <div className="uploader">
@@ -27,5 +27,7 @@ export default function ImageUploader({onFile}) {
         </div>
       </div>
     </div>
-  )
+  );
 }
+
+export default memo(ImageUploader);
