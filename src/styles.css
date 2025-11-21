@@ -31,12 +31,15 @@ html, body, #root {
   background: var(--bg-solid);
   position: relative;
   min-width: 0;
+  overflow: hidden;
 }
 
 #root {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: stretch;
+  height: 100%;
+  overflow: hidden;
 }
 
 body::before {
@@ -64,12 +67,14 @@ body {
   width: 100%;
   min-width: 320px;
   margin: 0 auto;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
-  position: relative;
+  position: static;
   background: var(--bg-solid);
-  overflow: visible;
+  overflow: hidden;
   backdrop-filter: blur(10px);
   box-sizing: border-box;
   flex-shrink: 0;
@@ -131,17 +136,18 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  padding-top: env(safe-area-inset-top, 0);
   background: rgba(10, 6, 14, 0.4);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 10;
   border-bottom: 1px solid var(--border-color);
-  width: 100%;
   box-sizing: border-box;
   background-clip: padding-box;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .header-centered {
@@ -224,7 +230,10 @@ body {
     height: 60px;
     font-size: 18px;
     padding: 0 12px;
+    padding-top: env(safe-area-inset-top, 0);
   }
+  
+  /* Header padding handled by sticky positioning */
   
   .header-left {
     gap: 8px;
@@ -244,7 +253,10 @@ body {
   .header {
     height: 80px;
     font-size: 24px;
+    padding-top: env(safe-area-inset-top, 0);
   }
+  
+  /* Header padding handled by sticky positioning */
   
   .header-title {
     font-size: 24px;
@@ -258,13 +270,16 @@ body {
 
 /* === CHAT === */
 .chat {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
   padding: 20px;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
   background: transparent;
   width: 100%;
   min-width: 100%;
@@ -356,24 +371,34 @@ body {
 
 /* === UPLOADER === */
 .uploader {
-  border: 2px dashed rgba(123, 77, 255, 0.4);
+  border: none;
   padding: 40px 20px;
   border-radius: 20px;
-  background: var(--card);
+  background: #201B28;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   text-align: center;
   width: 100%;
   box-sizing: border-box;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: box-shadow 0.2s ease;
   box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
 
 .uploader:hover {
-  border-color: rgba(123, 77, 255, 0.6);
   box-shadow: var(--shadow-md);
+}
+
+.uploader .btn {
+  background: #7B4DFF;
+  border: none;
+  color: var(--text);
+}
+
+.uploader .btn:hover:not(:disabled) {
+  background: #6a3de6;
+  border: none;
 }
 
 @media (max-width: 480px) {
@@ -574,10 +599,10 @@ body {
 .bottom-container {
   position: sticky;
   bottom: 0;
-  z-index: 20;
-  width: 100%;
+  z-index: 10;
   box-sizing: border-box;
-  padding: 0 16px 16px 16px;
+  padding: 16px 16px 0 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -585,8 +610,24 @@ body {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: 30px 30px 0 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.2), 0 -4px 20px rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  overscroll-behavior: none;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+/* Обводка только сверху и на закруглениях */
+.bottom-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px; /* высота закругления */
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px 30px 0 0;
+  pointer-events: none;
 }
 
 /* === FOOTER / BOTTOM BAR === */
@@ -613,7 +654,7 @@ body {
   gap: 8px;
   width: 100%;
   flex-wrap: nowrap;
-  padding: 12px 0 0 0;
+  padding: 0 0 0 0;
   box-sizing: border-box;
 }
 
@@ -1079,7 +1120,7 @@ body {
   align-items: center;
   gap: 10px;
   font-style: italic;
-  color: var(--text-light);
+  color: #ffffff;
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
@@ -1088,10 +1129,7 @@ body {
 }
 
 .generating-text span {
-  background: linear-gradient(135deg, var(--accent-solid), #6a3de6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -1111,7 +1149,7 @@ body {
 
 .generating-loader {
   animation: spin 1s linear infinite;
-  color: var(--accent);
+  color: #ffffff;
   flex-shrink: 0;
 }
 
@@ -1254,7 +1292,7 @@ body {
 .message .bubble.bubble-generating {
   max-width: none;
   flex: 0 0 auto;
-  background: var(--card-glass);
+  background: #201B28;
 }
 
 .message .bubble.bubble-clickable {
@@ -1456,7 +1494,7 @@ body {
 
 @media (max-width: 480px) {
   .bottom-container {
-    padding: 0 16px 16px 16px;
+    padding: 16px 16px 16px 16px;
   }
   
   .bottom-navbar {
@@ -1477,7 +1515,7 @@ body {
 
 @media (min-width: 768px) {
   .bottom-container {
-    padding: 0 16px 16px 16px;
+    padding: 16px 16px 16px 16px;
   }
   
   .bottom-navbar {
@@ -1492,7 +1530,7 @@ body {
 
 @media (min-width: 1024px) {
   .bottom-container {
-    padding: 0 16px 16px 16px;
+    padding: 16px 16px 16px 16px;
   }
   
   .bottom-navbar {
@@ -1507,16 +1545,19 @@ body {
 
 /* === SAVED VIEW === */
 .saved-view {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   padding: 20px;
-  padding-bottom: 20px;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
   background: transparent;
   width: 100%;
   box-sizing: border-box;
+  min-height: 0;
 }
 
 .saved-view::-webkit-scrollbar {
@@ -1605,7 +1646,7 @@ body {
 /* Card */
 .saved-card {
   position: relative;
-  background: var(--card);
+  background: #201B28;
   border-radius: 16px;
   overflow: visible;
   box-shadow: var(--shadow-md);
@@ -1958,6 +1999,33 @@ button.image-modal-close svg {
   .image-modal-img {
     max-height: 85vh;
     border-radius: 8px;
+  }
+}
+
+/* === iOS FIX: prevent scroll bounce === */
+@supports (-webkit-touch-callout: none) {
+  html, body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+
+  .app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* === iOS safe area support === */
+@supports (-webkit-touch-callout: none) {
+  .header {
+    padding-top: max(env(safe-area-inset-top, 0), 0px);
+  }
+
+  .bottom-container {
+    padding-bottom: max(calc(16px + env(safe-area-inset-bottom, 0)), 16px);
   }
 }
 

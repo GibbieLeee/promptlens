@@ -20,32 +20,56 @@ function generatePromptFromImageMock(file, { signal, onPhase }) {
       return reject({ type: "aborted" });
     }
 
+    // Массив для хранения ID таймеров для очистки
+    const timers = [];
+    let isRejected = false;
+
     const checkAborted = () => {
-      if (signal?.aborted) {
-        reject({ type: "aborted" });
+      if (signal?.aborted || isRejected) {
+        // Очищаем все таймеры при abort
+        timers.forEach(clearTimeout);
+        if (!isRejected) {
+          isRejected = true;
+          reject({ type: "aborted" });
+        }
         return true;
       }
       return false;
     };
 
-    setTimeout(() => {
-      if (checkAborted()) return;
-      onPhase?.("Analysing image…");
-    }, 600);
-    setTimeout(() => {
-      if (checkAborted()) return;
-      onPhase?.("Finding objects…");
-    }, 1400);
-    setTimeout(() => {
-      if (checkAborted()) return;
-      onPhase?.("Generating prompt…");
-    }, 2200);
+    // Обработчик abort сигнала
+    const abortHandler = () => {
+      checkAborted();
+    };
 
-    setTimeout(() => {
-      if (checkAborted()) return;
-      const base = `A solitary white plastic chair is positioned in the center-left of the frame, bathed in a spotlight. The chair is simple in design, with a woven backrest and armrests. The background is a stark contrast, with a dark, almost black wall and corner on the right, and a gray wall on the left. The lighting creates a dramatic effect, with strong shadows cast from the chair onto the floor. The overall style is photographic, high contrast, cinematic.`;
-      resolve(base);
-    }, 3800);
+    signal?.addEventListener?.('abort', abortHandler);
+
+    const schedulePhase = (phase, delay) => {
+      const timerId = setTimeout(() => {
+        if (checkAborted()) return;
+        onPhase?.(phase);
+      }, delay);
+      timers.push(timerId);
+      return timerId;
+    };
+
+    const scheduleResolve = (result, delay) => {
+      const timerId = setTimeout(() => {
+        if (checkAborted()) return;
+        // Убираем обработчик abort перед resolve
+        signal?.removeEventListener?.('abort', abortHandler);
+        resolve(result);
+      }, delay);
+      timers.push(timerId);
+      return timerId;
+    };
+
+    // Запускаем фазы генерации
+    schedulePhase("Analysing image…", 600);
+    schedulePhase("Finding objects…", 1400);
+    schedulePhase("Generating prompt…", 2200);
+
+    scheduleResolve(`A solitary white plastic chair is positioned in the center-left of the frame, bathed in a spotlight. The chair is simple in design, with a woven backrest and armrests. The background is a stark contrast, with a dark, almost black wall and corner on the right, and a gray wall on the left. The lighting creates a dramatic effect, with strong shadows cast from the chair onto the floor. The overall style is photographic, high contrast, cinematic.`, 3800);
   });
 }
 
@@ -91,6 +115,16 @@ export default function App() {
     return () => {
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("online", handleOnline);
+    };
+  }, []);
+
+  // Очистка состояния генерации при размонтировании компонента
+  useEffect(() => {
+    return () => {
+      controllerRef.current?.abort?.();
+      setIsGenerating(false);
+      setIsRegenerating(false);
+      setStatusPhase("");
     };
   }, []);
 
@@ -209,6 +243,11 @@ export default function App() {
         setIsRegenerating(false);
       })
       .catch((err) => {
+        // Всегда сбрасываем состояние генерации
+        controllerRef.current = null;
+        setIsGenerating(false);
+        setIsRegenerating(false);
+
         if (err?.type === "aborted") {
           setHistory((prev) =>
             prev.map((h) =>
@@ -218,26 +257,22 @@ export default function App() {
             )
           );
           setStatusPhase("Generation stopped");
-          controllerRef.current = null;
-          setIsGenerating(false);
-          setIsRegenerating(false);
           // При отмене возвращаем кредиты
           add(GENERATION_COST);
           return;
         }
+
         const msg =
           err?.type === "network"
             ? "Something went wrong. Try again?"
             : "Could not generate prompt from this image.";
+
         setHistory((prev) =>
           prev.map((h) =>
             h.id === id ? { ...h, status: GENERATION_STATUS.ERROR, prompt: msg } : h
           )
         );
         setStatusPhase("");
-        controllerRef.current = null;
-        setIsGenerating(false);
-        setIsRegenerating(false);
         // При ошибке возвращаем кредиты
         add(GENERATION_COST);
       });
@@ -278,12 +313,62 @@ export default function App() {
     startGeneration(file, id);
   }
 
-  const handleCopy = useCallback((text) => {
-    if (!text) return;
-    navigator.clipboard
-      ?.writeText(text)
-      .then(() => setToastMsg("Copied to clipboard"))
-      .catch(() => setToastMsg("Could not copy"));
+  const handleCopy = useCallback(async (text) => {
+    if (!text || typeof text !== "string") {
+      console.warn("Invalid text for copy:", text);
+      return;
+    }
+    
+    // Метод 1: Современный Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        setToastMsg("Copied to clipboard");
+        return;
+      } catch (err) {
+        console.warn("Clipboard API failed, trying fallback:", err);
+      }
+    }
+    
+    // Метод 2: Fallback через временный textarea с document.execCommand
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.top = "0";
+    textarea.style.left = "0";
+    textarea.style.width = "2em";
+    textarea.style.height = "2em";
+    textarea.style.padding = "0";
+    textarea.style.border = "none";
+    textarea.style.outline = "none";
+    textarea.style.boxShadow = "none";
+    textarea.style.background = "transparent";
+    textarea.style.opacity = "0";
+    
+    document.body.appendChild(textarea);
+    
+    try {
+      textarea.focus();
+      textarea.select();
+    } catch (focusErr) {
+      // Если focus не работает, пробуем без него
+      textarea.select();
+    }
+    
+    try {
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      
+      if (successful) {
+        setToastMsg("Copied to clipboard");
+      } else {
+        throw new Error("execCommand('copy') returned false");
+      }
+    } catch (err) {
+      document.body.removeChild(textarea);
+      console.error("Copy failed:", err);
+      setToastMsg("Could not copy");
+    }
   }, []);
 
   const handleMessageExpand = useCallback((messageElement) => {
