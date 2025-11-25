@@ -322,6 +322,297 @@ body {
   }
 }
 
+/* === LANDING === */
+.landing {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: radial-gradient(circle at top right, rgba(123, 77, 255, 0.25), transparent 55%);
+}
+
+.landing-card {
+  width: 100%;
+  max-width: 540px;
+  background: rgba(10, 6, 14, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+  padding: 40px;
+  box-shadow: var(--shadow-lg);
+  text-align: left;
+}
+
+.landing-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  border-radius: 999px;
+  background: rgba(123, 77, 255, 0.15);
+  color: var(--text);
+}
+
+.landing-card h1 {
+  margin: 24px 0 12px;
+  font-size: 42px;
+  line-height: 1.15;
+}
+
+.landing-subtitle {
+  margin: 0;
+  color: var(--text-light);
+  line-height: 1.6;
+}
+
+.landing-actions {
+  display: flex;
+  gap: 12px;
+  margin: 30px 0 24px;
+  flex-wrap: wrap;
+}
+
+.landing-btn {
+  flex: 1;
+  min-width: 140px;
+  border-radius: 999px;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.landing-btn.ghost {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: var(--text);
+}
+
+.landing-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.landing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text-light);
+}
+
+.landing-features li {
+  display: flex;
+  gap: 10px;
+}
+
+.landing-features li::before {
+  content: "•";
+  color: var(--accent-solid);
+}
+
+@media (max-width: 520px) {
+  .landing-card {
+    padding: 28px;
+  }
+
+  .landing-card h1 {
+    font-size: 32px;
+  }
+}
+
+/* === AUTH MODALS === */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 6, 14, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 2000;
+  backdrop-filter: blur(6px);
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-modal {
+  background: rgba(20, 16, 26, 0.95);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 32px;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.modal-close::before,
+.modal-close::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
+.modal-close::before {
+  transform: rotate(45deg);
+}
+
+.modal-close::after {
+  transform: rotate(-45deg);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.modal-subtitle {
+  margin: -6px 0 8px;
+  color: var(--text-light);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.modal-input {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.modal-input:focus {
+  outline: 2px solid rgba(123, 77, 255, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-field .modal-input {
+  padding-right: 90px;
+  width: 100%;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  border: none;
+  background: transparent;
+  color: var(--accent-solid);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.password-toggle:hover {
+  opacity: 0.8;
+}
+
+.modal-btn {
+  width: 100%;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.modal-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.modal-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.modal-divider {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.modal-error {
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 12px;
+  color: #fca5a5;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .auth-modal {
+    padding: 26px 22px;
+  }
+}
+
 @media (min-width: 768px) {
   .chat {
     padding: 16px;
@@ -1640,6 +1931,78 @@ body {
   .saved-grid {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
+  }
+}
+
+/* === SETTINGS VIEW === */
+.settings-view {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.settings-card {
+  background: rgba(26, 26, 26, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+}
+
+.settings-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+}
+
+.settings-card-header h2 {
+  margin: 6px 0 0;
+  font-size: 22px;
+}
+
+.settings-email {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.settings-description {
+  margin: 12px 0 20px;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+
+.settings-logout-btn {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 12px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.settings-logout-btn:hover {
+  border-color: rgba(239, 68, 68, 0.7);
+  background: rgba(239, 68, 68, 0.15);
+}
+
+@media (max-width: 480px) {
+  .settings-view {
+    padding: 12px;
   }
 }
 

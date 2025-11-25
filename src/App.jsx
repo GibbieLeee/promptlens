@@ -13,6 +13,8 @@ import { formatCredits, GENERATION_COST } from "./utils/credits";
 import { useCredits } from "./hooks/useCredits";
 import { VALID_TYPES, MAX_SIZE, STORAGE_KEYS, GENERATION_STATUS, TABS } from "./constants";
 import { safeGetItem, safeSetItem } from "./utils/storage";
+import { useAuth } from "./contexts/AuthContext";
+import Landing from "./components/auth/Landing";
 
 function generatePromptFromImageMock(file, { signal, onPhase }) {
   return new Promise((resolve, reject) => {
@@ -90,6 +92,8 @@ function saveSavedPrompts(saved) {
 }
 
 export default function App() {
+  const { user, loading, logout } = useAuth();
+
   const [history, setHistory] = useState(() => loadHistory());
   const [savedPrompts, setSavedPrompts] = useState(() => loadSavedPrompts());
   const [activeTab, setActiveTab] = useState(TABS.CHAT);
@@ -468,6 +472,15 @@ export default function App() {
     setModalImage(null);
   }, []);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed", error);
+      setToastMsg("Could not sign out");
+    }
+  }, [logout]);
+
   function dataURLtoFile(dataurl, filename) {
     if (!dataurl) return null;
     try {
@@ -485,6 +498,14 @@ export default function App() {
       console.error("Error converting dataURL to File:", error);
       return null;
     }
+  }
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return <Landing />;
   }
 
   return (
@@ -613,6 +634,27 @@ export default function App() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === TABS.SETTINGS && (
+        <div className="settings-view">
+          <div className="settings-card">
+            <div className="settings-card-header">
+              <div>
+                <p className="settings-eyebrow">Account</p>
+                <h2>Profile</h2>
+              </div>
+              <span className="settings-email">{user?.email || "Unknown account"}</span>
+            </div>
+            <p className="settings-description">
+              Manage your session and security. More preferences will appear here soon.
+            </p>
+            <button className="settings-logout-btn" onClick={handleLogout}>
+              Log out
+            </button>
+          </div>
         </div>
       )}
 
