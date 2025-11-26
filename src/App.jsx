@@ -15,65 +15,7 @@ import { VALID_TYPES, MAX_SIZE, STORAGE_KEYS, GENERATION_STATUS, TABS } from "./
 import { safeGetItem, safeSetItem } from "./utils/storage";
 import { useAuth } from "./contexts/AuthContext";
 import Landing from "./components/auth/Landing";
-
-function generatePromptFromImageMock(file, { signal, onPhase }) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      return reject({ type: "aborted" });
-    }
-
-    // Массив для хранения ID таймеров для очистки
-    const timers = [];
-    let isRejected = false;
-
-    const checkAborted = () => {
-      if (signal?.aborted || isRejected) {
-        // Очищаем все таймеры при abort
-        timers.forEach(clearTimeout);
-        if (!isRejected) {
-          isRejected = true;
-          reject({ type: "aborted" });
-        }
-        return true;
-      }
-      return false;
-    };
-
-    // Обработчик abort сигнала
-    const abortHandler = () => {
-      checkAborted();
-    };
-
-    signal?.addEventListener?.('abort', abortHandler);
-
-    const schedulePhase = (phase, delay) => {
-      const timerId = setTimeout(() => {
-        if (checkAborted()) return;
-        onPhase?.(phase);
-      }, delay);
-      timers.push(timerId);
-      return timerId;
-    };
-
-    const scheduleResolve = (result, delay) => {
-      const timerId = setTimeout(() => {
-        if (checkAborted()) return;
-        // Убираем обработчик abort перед resolve
-        signal?.removeEventListener?.('abort', abortHandler);
-        resolve(result);
-      }, delay);
-      timers.push(timerId);
-      return timerId;
-    };
-
-    // Запускаем фазы генерации
-    schedulePhase("Analysing image…", 600);
-    schedulePhase("Finding objects…", 1400);
-    schedulePhase("Generating prompt…", 2200);
-
-    scheduleResolve(`A solitary white plastic chair is positioned in the center-left of the frame, bathed in a spotlight. The chair is simple in design, with a woven backrest and armrests. The background is a stark contrast, with a dark, almost black wall and corner on the right, and a gray wall on the left. The lighting creates a dramatic effect, with strong shadows cast from the chair onto the floor. The overall style is photographic, high contrast, cinematic.`, 3800);
-  });
-}
+import { generatePromptFromImage } from "./api/gemini";
 
 function loadHistory() {
   return safeGetItem(STORAGE_KEYS.HISTORY, []);
@@ -224,7 +166,7 @@ export default function App() {
     setIsGenerating(true);
     setStatusPhase("Analysing image…");
 
-    generatePromptFromImageMock(file, {
+    generatePromptFromImage(file, {
       signal: controller.signal,
       onPhase: (phase) => {
         setStatusPhase(phase);
