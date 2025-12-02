@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Copy, ChevronDown, ChevronUp, Loader2, Heart } from "lucide-react";
+import { useTranslation } from "../hooks/useTranslation";
 
 function Message({ type = "system", prompt, status, onCopy, onExpand, onToggleSave, isSaved }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const messageRef = useRef(null);
 
@@ -69,8 +71,8 @@ function Message({ type = "system", prompt, status, onCopy, onExpand, onToggleSa
           className={`message-save-btn ${isSaved ? "saved" : ""}`}
           onClick={handleSaveToggle}
           onMouseDown={(e) => e.preventDefault()}
-          aria-label={isSaved ? "Remove from saved" : "Save prompt"}
-          title={isSaved ? "Remove from saved" : "Save prompt"}
+          aria-label={isSaved ? t("removeFromSaved") : t("savePrompt")}
+          title={isSaved ? t("removeFromSaved") : t("savePrompt")}
         >
           <Heart size={20} className={isSaved ? "filled" : ""} />
         </button>
@@ -88,10 +90,10 @@ function Message({ type = "system", prompt, status, onCopy, onExpand, onToggleSa
         {/* Заголовок - показываем только если не generating */}
         {!isGenerating && (
           <div className="bubble-header">
-            <strong>Your Prompt</strong>
+            <strong>{t("yourPrompt")}</strong>
             <div className="bubble-copy-hint">
               <Copy size={14} />
-              <span>Copy</span>
+              <span>{t("copy")}</span>
             </div>
           </div>
         )}
@@ -100,12 +102,12 @@ function Message({ type = "system", prompt, status, onCopy, onExpand, onToggleSa
         {isGenerating && (
           <div className="generating-text">
             <Loader2 className="generating-loader" size={16} />
-            <span>{prompt || "Generating prompt…"}</span>
+            <span>{prompt || t("generating")}</span>
           </div>
         )}
 
         {isStopped && (
-          <div className="message-status message-status-stopped">⏸ Generation stopped</div>
+          <div className="message-status message-status-stopped">⏸ {t("generationStopped")}</div>
         )}
 
         {isError && <div className="message-status message-status-error">{prompt}</div>}
@@ -120,9 +122,9 @@ function Message({ type = "system", prompt, status, onCopy, onExpand, onToggleSa
               <button
                 onClick={handleExpandToggle}
                 className="expandLink"
-                aria-label={expanded ? "Collapse prompt" : "Show full prompt"}
+                aria-label={expanded ? t("showLess") : t("showMore")}
               >
-                {expanded ? "Show less" : "Show more"}
+                {expanded ? t("showLess") : t("showMore")}
                 {expanded ? (
                   <ChevronUp size={14} className="expandIcon" />
                 ) : (

@@ -1,16 +1,96 @@
-# React + Vite
+# AI Prompt Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web application that converts images into detailed AI art generation prompts using Google's Gemini API.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🖼️ Upload images and get professional AI prompts
+- 💾 Save your favorite prompts with cloud sync
+- 🔄 Regenerate prompts with one click
+- 🔐 Firebase authentication
+- 💳 Built-in credits system (server-side)
+- ☁️ **NEW:** Full cloud synchronization (Firestore + Storage)
+- 📱 **NEW:** Access your data from any device
+- 🗂️ **NEW:** Complete chat history saved
+- 🖼️ **NEW:** Automatic image compression
+- ♾️ **NEW:** Unlimited saved prompts
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19 + Vite
+- Gemini API (Flash Lite 2.0)
+- Firebase (Auth, Firestore & Storage)
+- Lucide React (Icons)
+- WebP Image Compression
 
-## Expanding the ESLint configuration
+## Setup
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. **Clone and install**
+```bash
+git clone <your-repo-url>
+cd ai-prompt-generator-5.0
+npm install
+```
+
+2. **Configure environment**
+
+Create a `.env` file:
+
+```env
+VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+# Примечание: имя bucket может быть .firebasestorage.app (новый формат) 
+# или .appspot.com (старый формат). Проверьте в Firebase Console!
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+**Get Gemini API Key**: https://aistudio.google.com/app/apikey  
+**Firebase Setup**: See `SETUP.md`
+
+3. **Run**
+```bash
+npm run dev
+```
+
+Visit `http://localhost:5173`
+
+## Usage
+
+1. Sign up / Log in
+2. Upload an image (JPG, PNG, WEBP, max 10MB)
+3. Wait for generation (~5-15 seconds)
+4. Copy the prompt or save to favorites
+5. Use in Midjourney, DALL-E, Stable Diffusion, etc.
+
+## Configuration
+
+The app is pre-configured with optimized settings for high-quality prompts. Settings can be adjusted in `src/api/geminiConfig.js` if needed.
+
+## Troubleshooting
+
+**"Region restricted" error**: Use a VPN (US/UK/EU servers) - Gemini API is not available in all regions.
+
+**Out of credits**: Credits are stored server-side. Initial balance is 1000 credits per user.
+
+**"Permission denied" error**: Make sure Firebase Security Rules are properly configured (see `FIREBASE_RULES.md`).
+
+**Images not loading**: Ensure Firebase Storage is enabled and rules are set up correctly.
+
+## 🆕 Recent Updates
+
+**Version 5.0** - Full Cloud Synchronization
+- Migrated from localStorage to Firestore + Firebase Storage
+- All user data now syncs across devices
+- Images are automatically compressed before upload
+- Chat history fully preserved
+- Server-side credit management
+
+See `MIGRATION_GUIDE.md` for detailed setup instructions.
+
+## License
+
+MIT License

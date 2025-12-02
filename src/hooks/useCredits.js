@@ -1,25 +1,27 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { GENERATION_COST } from "../utils/credits";
 import {
-  loadCredits,
-  deductCredits as deductCreditsUtil,
-  addCredits as addCreditsUtil,
-  hasEnoughCredits as hasEnoughCreditsUtil,
-  GENERATION_COST,
-} from "../utils/credits";
+  deductUserCredits,
+  addUserCredits
+} from "../utils/firestoreData";
+import { useAuth } from "../contexts/AuthContext";
 
 /**
- * Хук для управления кредитами
+ * Хук для управления кредитами пользователя через Firestore
+ * @param {number} initialCredits - Начальный баланс кредитов
  * @returns {Object} Объект с состоянием и методами для работы с кредитами
  */
-export function useCredits() {
-  const [credits, setCredits] = useState(() => loadCredits());
+export function useCredits(initialCredits = 0) {
+  const { user } = useAuth();
+  const [credits, setCredits] = useState(initialCredits);
+  const [isLoading, setIsLoading] = useState(false);
 
   /**
    * Проверяет, достаточно ли кредитов
    */
   const hasEnough = useCallback(
     (required = GENERATION_COST) => {
-      return hasEnoughCreditsUtil(required, credits);
+      return credits >= required;
     },
     [credits]
   );
@@ -28,32 +30,59 @@ export function useCredits() {
    * Списывает кредиты
    */
   const deduct = useCallback(
-    (amount = GENERATION_COST) => {
-      const result = deductCreditsUtil(amount);
-      if (result.success) {
-        setCredits(result.newBalance);
+    async (amount = GENERATION_COST) => {
+      if (!user) {
+        return { success: false, newBalance: credits, error: 'User not authenticated' };
       }
-      return result;
+
+      setIsLoading(true);
+      try {
+        const result = await deductUserCredits(user.uid, amount);
+        if (result.success) {
+          setCredits(result.newBalance);
+        }
+        return result;
+      } catch (error) {
+        console.error('Failed to deduct credits:', error);
+        return { success: false, newBalance: credits, error: error.message };
+      } finally {
+        setIsLoading(false);
+      }
     },
-    []
+    [user, credits]
   );
 
   /**
    * Добавляет кредиты
    */
-  const add = useCallback((amount) => {
-    const result = addCreditsUtil(amount);
-    if (result.success) {
-      setCredits(result.newBalance);
-    }
-    return result;
-  }, []);
+  const add = useCallback(
+    async (amount) => {
+      if (!user) {
+        return { success: false, newBalance: credits };
+      }
+
+      setIsLoading(true);
+      try {
+        const result = await addUserCredits(user.uid, amount);
+        if (result.success) {
+          setCredits(result.newBalance);
+        }
+        return result;
+      } catch (error) {
+        console.error('Failed to add credits:', error);
+        return { success: false, newBalance: credits };
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [user, credits]
+  );
 
   /**
-   * Обновляет баланс из localStorage
+   * Обновляет баланс напрямую (используется при загрузке из Firestore)
    */
-  const refresh = useCallback(() => {
-    setCredits(loadCredits());
+  const setBalance = useCallback((newBalance) => {
+    setCredits(newBalance);
   }, []);
 
   return {
@@ -61,7 +90,8 @@ export function useCredits() {
     hasEnough,
     deduct,
     add,
-    refresh,
+    setBalance,
+    isLoading,
   };
 }
 

@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { auth, db } from "../../firebase";
+import { auth, db, googleProvider } from "../../firebase";
 import {
   createUserWithEmailAndPassword,
-  GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
 } from "firebase/auth";
@@ -45,7 +44,7 @@ export default function SignUpModal({ onClose }) {
       // Создаем Firestore документ
       await setDoc(doc(db, "users", user.uid), {
         email: user.email,
-        credits: 20,
+        credits: 10000, // Начальный баланс для тестирования
         createdAt: serverTimestamp(),
       });
 
@@ -60,13 +59,40 @@ export default function SignUpModal({ onClose }) {
   // -------------------------------
   // Google Sign Up
   // -------------------------------
-  const handleGoogleSignUp = async () => {
+  const handleGoogleSignUp = async (e) => {
+    // Предотвращаем стандартное поведение, если это нужно
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     setError("");
-    const provider = new GoogleAuthProvider();
+    setLoading(true);
+    
+    // Используем экспортированный провайдер и настраиваем его
+    const provider = googleProvider;
+    
+    // Добавляем scope для получения email и профиля
+    provider.addScope('profile');
+    provider.addScope('email');
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+
+    // Detect if mobile browser → popup will fail
+    // Более точная детекция: проверяем только реальные мобильные устройства
+    const userAgent = navigator.userAgent || '';
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent) && 
+                     !/Windows Phone|Mobile/i.test(userAgent) && 
+                     window.innerWidth < 768; // Дополнительная проверка по ширине экрана
 
     try {
-      // Desktop → нормальный popup
-      if (window.innerWidth > 600) {
+      if (isMobile) {
+        // Mobile browsers block popups → use redirect
+        await signInWithRedirect(auth, provider);
+        // Note: onClose() is not called here because redirect will navigate away
+      } else {
+        // Desktop works fine with popup
         const userCred = await signInWithPopup(auth, provider);
         const user = userCred.user;
 
@@ -77,19 +103,36 @@ export default function SignUpModal({ onClose }) {
         if (!snap.exists()) {
           await setDoc(ref, {
             email: user.email,
-            credits: 20,
+            displayName: user.displayName || null,
+            photoURL: user.photoURL || null,
+            credits: 10000, // Начальный баланс для тестирования
             createdAt: serverTimestamp(),
           });
         }
 
+        // Небольшая задержка, чтобы AuthContext успел обработать пользователя
+        await new Promise(resolve => setTimeout(resolve, 100));
+        setLoading(false);
         onClose();
-        return;
       }
-
-      // Mobile → redirect (popup часто блокируется)
-      await signInWithRedirect(auth, provider);
     } catch (err) {
-      setError(err.message);
+      setLoading(false);
+      console.error('Google sign-up error:', err);
+      
+      // Better error message for redirect_uri_mismatch
+      if (err.code === "auth/redirect-uri-mismatch" || err.message?.includes("redirect_uri_mismatch")) {
+        setError("OAuth configuration error. Please contact the developer. Error: redirect_uri_mismatch");
+      } else if (err.code === "auth/popup-blocked") {
+        setError("Popup was blocked. Please allow popups for this site and try again.");
+      } else if (err.code === "auth/popup-closed-by-user") {
+        setError("Sign-up was cancelled. Please try again.");
+      } else if (err.code === "auth/operation-not-allowed") {
+        setError("Google sign-in is not enabled. Please contact the developer.");
+      } else if (err.code === "auth/unauthorized-domain") {
+        setError("This domain is not authorized for Google sign-in. Please contact the developer.");
+      } else {
+        setError(err.message || `Failed to sign up with Google. Error: ${err.code || 'unknown'}`);
+      }
     }
   };
 
@@ -101,7 +144,7 @@ export default function SignUpModal({ onClose }) {
         </button>
 
         <h2>Create your account</h2>
-        <p className="modal-subtitle">Start generating prompts with 20 free credits.</p>
+        <p className="modal-subtitle">Start generating prompts with 10,000 free credits.</p>
 
         {error && <div className="modal-error">{error}</div>}
 
@@ -168,8 +211,13 @@ export default function SignUpModal({ onClose }) {
           <span>or sign up with</span>
         </div>
 
-        <button className="modal-btn secondary" onClick={handleGoogleSignUp}>
-          Continue with Google
+        <button 
+          type="button"
+          className="modal-btn secondary" 
+          onClick={handleGoogleSignUp}
+          disabled={loading}
+        >
+          {loading ? "Signing up…" : "Continue with Google"}
         </button>
       </div>
     </div>

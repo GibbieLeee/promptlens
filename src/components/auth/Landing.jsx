@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SignInModal from "./SignInModal";
 import SignUpModal from "./SignUpModal";
+import { useAuth } from "../../contexts/AuthContext";
 
 const FEATURES = [
   "Upload a reference image in seconds",
@@ -11,6 +12,15 @@ const FEATURES = [
 export default function Landing() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
+  const { user } = useAuth();
+
+  // Закрываем модальные окна автоматически, если пользователь авторизовался (например, после redirect)
+  useEffect(() => {
+    if (user) {
+      setShowSignIn(false);
+      setShowSignUp(false);
+    }
+  }, [user]);
 
   return (
     <div className="landing">

@@ -1,8 +1,10 @@
 // src/components/ImageUploader.jsx
 import React, { memo } from 'react';
 import { Upload } from 'lucide-react';
+import { useTranslation } from '../hooks/useTranslation';
 
 function ImageUploader({onFile}) {
+  const { t } = useTranslation();
   // accepts file, validate externally
   return (
     <div className="uploader">
@@ -18,11 +20,11 @@ function ImageUploader({onFile}) {
         }}
       />
       <div style={{padding:'12px'}}>
-        <div style={{fontSize:16, marginBottom:12}}>Upload the image you want to turn into a prompt</div>
+        <div style={{fontSize:16, marginBottom:12}}>{t("uploadImageHint")}</div>
         <div style={{display:'flex', justifyContent:'center'}}>
           <label htmlFor="upload-input" className="btn" style={{cursor: 'pointer'}}>
             <Upload size={18} />
-            <span>Upload image</span>
+            <span>{t("uploadImage")}</span>
           </label>
         </div>
       </div>

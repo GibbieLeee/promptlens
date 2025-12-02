@@ -1,7 +1,7 @@
 import React, { useEffect, memo } from "react";
 import { createPortal } from "react-dom";
 
-function Toast({ message, onClose }) {
+function Toast({ message, onClose, isFavoritesActive = false }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -11,7 +11,7 @@ function Toast({ message, onClose }) {
   }, [onClose]);
 
   return createPortal(
-    <div className="toast">
+    <div className={`toast ${isFavoritesActive ? "favorites-active" : ""}`}>
       {message}
     </div>,
     document.body
