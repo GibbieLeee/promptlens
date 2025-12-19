@@ -351,68 +351,101 @@ export default function App() {
       },
     })
       .then(async (text) => {
-        // Получаем актуальный entry и обновляем state в одном вызове (исправление Race Condition)
-        let currentEntry;
-        setLocalHistory((prev) => {
-          currentEntry = prev.find((h) => h.id === id);
-          return prev.map((h) => h.id === id ? { ...h, prompt: text, status: GENERATION_STATUS.DONE } : h);
-        });
-        
-        const imageUrl = currentEntry?.imageUrl || currentEntry?.image;
-        const uploadedFile = uploadedFilesRef.current.get(id);
-        const needsImageUpload = uploadedFile && !currentEntry?.imageUrl;
-        
-        if (needsImageUpload && user) {
-          try {
-            const result = await addChatMessage({
-              id,
-              imageFile: uploadedFile,
-              prompt: text,
-              status: GENERATION_STATUS.DONE,
-              phases: []
-            });
-            // После успешной загрузки, URL из Storage будет обновлен в useUserData
-            uploadedFilesRef.current.delete(id);
-            
-            // Автосохранение с URL из Storage или миниатюрой
-            const finalImageUrl = result?.imageUrl || imageUrl;
-            await autoSavePromptIfNeeded(id, text, finalImageUrl);
-          } catch (storageError) {
-            // Ошибка загрузки в Storage - показываем предупреждение, но не блокируем работу
-            logger.warn('Failed to save image to Storage:', storageError);
-            if (storageError.message?.includes('CORS')) {
-              setToastMsg("⚠️ Image upload failed (CORS). Check Firebase Storage rules. See CORS_FIX.md");
-            } else {
-              setToastMsg("⚠️ Image upload failed. Prompt saved, but image may not sync.");
+        try {
+          // Получаем актуальный entry и обновляем state в одном вызове (исправление Race Condition)
+          let currentEntry;
+          setLocalHistory((prev) => {
+            currentEntry = prev.find((h) => h.id === id);
+            return prev.map((h) => h.id === id ? { ...h, prompt: text, status: GENERATION_STATUS.DONE } : h);
+          });
+          
+          const imageUrl = currentEntry?.imageUrl || currentEntry?.image;
+          const uploadedFile = uploadedFilesRef.current.get(id);
+          const needsImageUpload = uploadedFile && !currentEntry?.imageUrl;
+          
+          if (needsImageUpload && user) {
+            try {
+              const result = await addChatMessage({
+                id,
+                imageFile: uploadedFile,
+                prompt: text,
+                status: GENERATION_STATUS.DONE,
+                phases: []
+              });
+              // После успешной загрузки, URL из Storage будет обновлен в useUserData
+              uploadedFilesRef.current.delete(id);
+              
+              // Автосохранение с URL из Storage или миниатюрой
+              const finalImageUrl = result?.imageUrl || imageUrl;
+              try {
+                await autoSavePromptIfNeeded(id, text, finalImageUrl);
+              } catch (autoSaveError) {
+                logger.warn('Auto-save failed:', autoSaveError);
+              }
+            } catch (storageError) {
+              // Ошибка загрузки в Storage - показываем предупреждение, но не блокируем работу
+              logger.warn('Failed to save image to Storage:', storageError);
+              if (storageError.message?.includes('CORS')) {
+                setToastMsg("⚠️ Image upload failed (CORS). Prompt saved with thumbnail.");
+              } else {
+                setToastMsg("⚠️ Image upload failed. Prompt saved, but image may not sync.");
+              }
+              uploadedFilesRef.current.delete(id);
+              
+              // ВАЖНО: Сохраняем промпт в Firestore даже при ошибке загрузки изображения
+              // Используем миниатюру (Data URL) вместо Storage URL
+              try {
+                await addChatMessage({
+                  id,
+                  image: imageUrl, // Используем миниатюру вместо imageFile
+                  prompt: text,
+                  status: GENERATION_STATUS.DONE,
+                  phases: []
+                });
+              } catch (saveError) {
+                logger.error('Failed to save prompt with thumbnail fallback:', saveError);
+              }
+              
+              // Автосохранение с миниатюрой
+              try {
+                await autoSavePromptIfNeeded(id, text, imageUrl);
+              } catch (autoSaveError) {
+                logger.warn('Auto-save failed:', autoSaveError);
+              }
             }
-            uploadedFilesRef.current.delete(id);
-            
-            // Автосохранение с миниатюрой
-            await autoSavePromptIfNeeded(id, text, imageUrl);
+          } else if (isRegenerating && user) {
+            // При регенерации обновляем только промпт, изображение уже есть
+            try {
+              await updateChatMessage(id, {
+                prompt: text,
+                status: GENERATION_STATUS.DONE,
+                phases: []
+              });
+              
+              // Автосохранение при регенерации
+              try {
+                await autoSavePromptIfNeeded(id, text, imageUrl);
+              } catch (autoSaveError) {
+                logger.warn('Auto-save failed:', autoSaveError);
+              }
+            } catch (error) {
+              logger.warn('Failed to update chat message:', error);
+            }
+          } else {
+            // Если изображение уже загружено или пользователь не авторизован
+            try {
+              await autoSavePromptIfNeeded(id, text, imageUrl);
+            } catch (autoSaveError) {
+              logger.warn('Auto-save failed:', autoSaveError);
+            }
           }
-        } else if (isRegenerating && user) {
-          // При регенерации обновляем только промпт, изображение уже есть
-          try {
-            await updateChatMessage(id, {
-              prompt: text,
-              status: GENERATION_STATUS.DONE,
-              phases: []
-            });
-            
-            // Автосохранение при регенерации
-            await autoSavePromptIfNeeded(id, text, imageUrl);
-          } catch (error) {
-            logger.warn('Failed to update chat message:', error);
-          }
-        } else {
-          // Если изображение уже загружено или пользователь не авторизован
-          await autoSavePromptIfNeeded(id, text, imageUrl);
+        } finally {
+          // ВАЖНО: Всегда останавливаем генерацию, даже если что-то пошло не так
+          setStatusPhase("");
+          controllerRef.current = null;
+          setIsGenerating(false);
+          setIsRegenerating(false);
         }
-        
-        setStatusPhase("");
-        controllerRef.current = null;
-        setIsGenerating(false);
-        setIsRegenerating(false);
       })
       .catch(async (err) => {
         controllerRef.current = null;

@@ -67,11 +67,11 @@ Firebase Storage требует настройки CORS (Cross-Origin Resource S
 
 1. Откройте [Google Cloud Console](https://console.cloud.google.com/)
 2. Выберите ваш проект
-3. Перейдите в **Cloud Storage** → **Browser**
-4. Выберите ваш bucket (`promptlens-gibbie.firebasestorage.app`)
-5. Перейдите на вкладку **Configuration**
+3. Перейдите в **Cloud Storage** → **Buckets**
+4. Выберите ваш bucket (`promptlens-gibbie.firebasestorage.app` или `promptlens-gibbie.appspot.com`)
+5. Перейдите на вкладку **Configuration** (в верхней части страницы bucket)
 6. В разделе **CORS** нажмите **Edit**
-7. Вставьте содержимое из `cors.json` (только JSON без внешних квадратных скобок массива)
+7. Вставьте содержимое из `cors.json` (только JSON объект без внешних квадратных скобок массива)
 8. Сохраните изменения
 
 **Важно:** В Cloud Console нужно вставить только объект из массива:
