@@ -26,6 +26,7 @@ import ConfirmModal from "./components/settings/ConfirmModal";
 import { generatePromptFromImage } from "./api/gemini";
 import { createThumbnail, compressImage } from "./utils/imageCompression";
 import { downloadImageAsFile } from "./utils/firebaseStorage";
+import { saveChatMessage as saveChatMessageDirect } from "./utils/firestoreData";
 import logger from "./utils/logger";
 
 export default function App() {
@@ -385,7 +386,9 @@ export default function App() {
             } catch (storageError) {
               // Ошибка загрузки в Storage - показываем предупреждение, но не блокируем работу
               logger.warn('Failed to save image to Storage:', storageError);
-              if (storageError.message?.includes('CORS')) {
+              const errorMsg = storageError.message?.toLowerCase() || '';
+              const isCorsError = errorMsg.includes('cors') || errorMsg.includes('preflight') || errorMsg.includes('access-control');
+              if (isCorsError) {
                 setToastMsg("⚠️ Image upload failed (CORS). Prompt saved with thumbnail.");
               } else {
                 setToastMsg("⚠️ Image upload failed. Prompt saved, but image may not sync.");
@@ -395,15 +398,48 @@ export default function App() {
               // ВАЖНО: Сохраняем промпт в Firestore даже при ошибке загрузки изображения
               // Используем миниатюру (Data URL) вместо Storage URL
               try {
-                await addChatMessage({
+                // Пытаемся сохранить через хук (обновляет локальное состояние)
+                const result = await addChatMessage({
                   id,
                   image: imageUrl, // Используем миниатюру вместо imageFile
                   prompt: text,
                   status: GENERATION_STATUS.DONE,
                   phases: []
                 });
+                
+                // Если хук вернул null (ошибка), сохраняем напрямую в Firestore
+                if (!result && user) {
+                  logger.warn('addChatMessage returned null, saving directly to Firestore');
+                  try {
+                    await saveChatMessageDirect(user.uid, {
+                      id,
+                      image: imageUrl,
+                      prompt: text,
+                      status: GENERATION_STATUS.DONE,
+                      phases: []
+                    });
+                    logger.success('✓ Prompt saved directly to Firestore');
+                  } catch (directSaveError) {
+                    logger.error('Failed to save prompt directly to Firestore:', directSaveError);
+                  }
+                }
               } catch (saveError) {
                 logger.error('Failed to save prompt with thumbnail fallback:', saveError);
+                // Последняя попытка - сохранить напрямую в Firestore
+                if (user) {
+                  try {
+                    await saveChatMessageDirect(user.uid, {
+                      id,
+                      image: imageUrl,
+                      prompt: text,
+                      status: GENERATION_STATUS.DONE,
+                      phases: []
+                    });
+                    logger.success('✓ Prompt saved directly to Firestore (fallback)');
+                  } catch (directSaveError) {
+                    logger.error('Failed to save prompt directly to Firestore (fallback):', directSaveError);
+                  }
+                }
               }
               
               // Автосохранение с миниатюрой

@@ -48,10 +48,27 @@ export async function uploadImage(file, userId, imageId) {
       throw new Error('Storage: Permission denied. Check security rules.');
     } else if (error.code === 'storage/canceled') {
       throw new Error('Storage: Upload canceled.');
-    } else if (error.message?.includes('CORS') || error.message?.includes('preflight')) {
-      throw new Error('Storage: CORS error. Check Firebase Storage rules and CORS configuration. See CORS_FIX.md for details.');
     } else if (error.code === 'storage/quota-exceeded') {
       throw new Error('Storage: Quota exceeded.');
+    } 
+    
+    // Определение CORS ошибок - проверяем различные признаки
+    const errorMessage = error.message?.toLowerCase() || '';
+    const errorString = String(error).toLowerCase();
+    const isCorsError = 
+      errorMessage.includes('cors') ||
+      errorMessage.includes('preflight') ||
+      errorMessage.includes('access-control') ||
+      errorMessage.includes('cross-origin') ||
+      errorString.includes('cors') ||
+      errorString.includes('preflight') ||
+      errorString.includes('access-control') ||
+      errorString.includes('cross-origin') ||
+      error.code === 'storage/unknown' && errorMessage.includes('network') ||
+      (error.serverResponse && error.serverResponse.status === 0); // Network error часто означает CORS
+    
+    if (isCorsError) {
+      throw new Error('Storage: CORS error. Check Firebase Storage rules and CORS configuration. See CORS_FIX.md for details.');
     } else {
       throw new Error(`Storage upload failed: ${error.message || 'Unknown error'}`);
     }
