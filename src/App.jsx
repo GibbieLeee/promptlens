@@ -342,6 +342,9 @@ export default function App() {
     setIsGenerating(true);
     setStatusPhase(translations.analysing);
 
+    // Получаем тип промпта из настроек
+    const promptType = getSetting("generation", "outputPromptType") || "universal";
+    
     generatePromptFromImage(file, {
       signal: controller.signal,
       onPhase: (phase) => {
@@ -350,6 +353,7 @@ export default function App() {
           prev.map((h) => h.id === id ? { ...h, phases: [...(h.phases || []), phase] } : h)
         );
       },
+      promptType: promptType,
     })
       .then(async (text) => {
         try {

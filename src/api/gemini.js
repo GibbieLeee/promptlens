@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { generationConfig, systemInstruction } from "./geminiConfig";
+import { generationConfig } from "./geminiConfig";
+import { getModelInstructions } from "./modelInstructions";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -22,13 +23,6 @@ if (!API_KEY || API_KEY === 'your_api_key_here') {
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Initialize model with optimized settings
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-lite",
-  generationConfig,
-  systemInstruction,
-});
-
 /**
  * Конвертирует ArrayBuffer в base64 без переполнения стека
  */
@@ -47,8 +41,13 @@ function arrayBufferToBase64(buffer) {
 
 /**
  * Генерация промпта прямо в браузере, без серверов
+ * @param {File} file - Изображение для анализа
+ * @param {Object} options - Опции генерации
+ * @param {AbortSignal} options.signal - Сигнал для отмены запроса
+ * @param {Function} options.onPhase - Callback для обновления фазы генерации
+ * @param {string} options.promptType - Тип модели для форматирования промпта (universal, midjourney, stable-diffusion, etc.)
  */
-export async function generatePromptFromImage(file, { signal, onPhase } = {}) {
+export async function generatePromptFromImage(file, { signal, onPhase, promptType = 'universal' } = {}) {
   // Проверка API ключа перед выполнением
   const currentApiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!currentApiKey || currentApiKey === 'your_api_key_here' || currentApiKey.trim() === '') {
@@ -61,12 +60,23 @@ export async function generatePromptFromImage(file, { signal, onPhase } = {}) {
   try {
     onPhase?.("Analysing image…");
 
+    // Получаем специфичные инструкции для выбранной модели
+    const modelInstructions = getModelInstructions(promptType);
+
+    // Создаем модель с динамической systemInstruction для выбранного типа
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-lite",
+      generationConfig,
+      systemInstruction: modelInstructions.systemInstruction,
+    });
+
     // читаем файл → в base64
     const arrayBuffer = await file.arrayBuffer();
     const base64 = arrayBufferToBase64(arrayBuffer);
 
     onPhase?.("Generating prompt…");
 
+    // Используем специфичный промпт-текст для выбранной модели
     const result = await model.generateContent(
       [
         {
@@ -76,7 +86,7 @@ export async function generatePromptFromImage(file, { signal, onPhase } = {}) {
           },
         },
         {
-          text: "Analyze this image and create a detailed, comprehensive description for AI image generation. Structure your response with these sections: Overall Impression, Subject and Appearance, Setting and Background, Technical Aspects (lighting, colors, composition), and Style/Mood. Be thorough and specific. Write a professional, detailed analysis that captures all important visual elements.",
+          text: modelInstructions.promptText,
         },
       ],
       { signal }
@@ -84,7 +94,8 @@ export async function generatePromptFromImage(file, { signal, onPhase } = {}) {
 
     onPhase?.("Finalizing…");
 
-    return result.response.text();
+    // Промпт уже сгенерирован в нужном формате для выбранной модели
+    return result.response.text().trim();
   } catch (error) {
     console.error("Gemini error:", error);
     
