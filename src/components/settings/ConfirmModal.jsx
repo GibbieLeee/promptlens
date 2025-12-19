@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 
 export default function ConfirmModal({ 
@@ -11,9 +12,19 @@ export default function ConfirmModal({
   cancelText = "Cancel",
   danger = false 
 }) {
+  // Блокируем скролл body при открытом модальном окне
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="settings-modal-backdrop" onClick={onClose}>
       <div className="confirm-modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="confirm-modal-header">
@@ -45,7 +56,8 @@ export default function ConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

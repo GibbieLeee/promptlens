@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from "react"
 import { Upload, RotateCw, Copy, Heart, ChevronDown, ChevronUp } from "lucide-react";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { ChatActive, ChatInactive } from "./components/icons/ChatIcon";
-import { FavoritesActive, FavoritesInactive } from "./components/icons/FavoritesIcon";
+import { SavedActive, SavedInactive } from "./components/icons/SavedIcon";
 import { SettingsActive, SettingsInactive } from "./components/icons/SettingsIcon";
 import "./styles.css";
 import ImageUploader from "./components/ImageUploader";
@@ -13,7 +13,7 @@ import UndoSnackbar from "./components/UndoSnackbar";
 import { formatCredits, GENERATION_COST } from "./utils/credits";
 import { useCredits } from "./hooks/useCredits";
 import { useUserData } from "./hooks/useUserData";
-import { VALID_TYPES, MAX_SIZE, GENERATION_STATUS, TABS } from "./constants";
+import { VALID_TYPES, MAX_SIZE, GENERATION_STATUS, TABS, LOADING_ANIMATION_URL } from "./constants";
 import { copyToClipboard } from "./utils/clipboard";
 import { dataURLtoFile } from "./utils/file";
 import { useAuth } from "./contexts/AuthContext";
@@ -26,11 +26,54 @@ import ConfirmModal from "./components/settings/ConfirmModal";
 import { generatePromptFromImage } from "./api/gemini";
 import { createThumbnail, compressImage } from "./utils/imageCompression";
 import { downloadImageAsFile } from "./utils/firebaseStorage";
+import logger from "./utils/logger";
 
 export default function App() {
   const { user, loading, logout } = useAuth();
   const { getSetting } = useSettings();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  
+  // Мемоизация переводов для часто используемых строк (оптимизация производительности)
+  const translations = useMemo(() => ({
+    // Navigation
+    chat: t("chat"),
+    saved: t("saved"),
+    settings: t("settings"),
+    
+    // Common
+    credits: t("credits"),
+    copy: t("copy"),
+    save: t("save"),
+    cancel: t("cancel"),
+    confirm: t("confirm"),
+    loading: t("loading"),
+    
+    // Chat
+    uploadImage: t("uploadImage"),
+    dragDrop: t("dragDrop"),
+    generating: t("generating"),
+    regenerating: t("regenerating"),
+    analysing: t("analysing"),
+    copied: t("copied"),
+    couldNotCopy: t("couldNotCopy"),
+    newChat: t("newChat"),
+    regenerate: t("regenerate"),
+    yourPrompt: t("yourPrompt"),
+    generationStopped: t("generationStopped"),
+    
+    // Saved
+    noSavedPrompts: t("noSavedPrompts"),
+    savedPromptsHint: t("savedPromptsHint"),
+    showMore: t("showMore"),
+    showLess: t("showLess"),
+    removeFromSaved: t("removeFromSaved"),
+    savePrompt: t("savePrompt"),
+    
+    // Errors
+    fileTooLarge: t("fileTooLarge"),
+    unsupportedFormat: t("unsupportedFormat"),
+    offline: t("offline"),
+  }), [lang]); // Пересчитываем только при смене языка
   
   // Загрузка данных пользователя из Firestore
   const {
@@ -44,6 +87,7 @@ export default function App() {
     addChatMessage,
     updateChatMessage,
     clearChat,
+    deleteOldMessages,
     updateCredits
   } = useUserData();
 
@@ -53,7 +97,7 @@ export default function App() {
   // Синхронизация кредитов с Firestore
   useEffect(() => {
     setBalance(userCredits);
-  }, [userCredits, setBalance]);
+  }, [userCredits]); // setBalance мемоизирован и стабилен
 
   // Локальное состояние UI
   const [activeTab, setActiveTab] = useState(TABS.CHAT);
@@ -82,16 +126,18 @@ export default function App() {
   useEffect(() => {
     if (!isLoadingData && chatHistory) {
       // Объединяем локальную историю с историей из Firestore
-      // Сохраняем локальные миниатюры, если URL из Storage еще не загружен
       setLocalHistory((prev) => {
         const merged = chatHistory.map((firestoreItem) => {
           const localItem = prev.find((p) => p.id === firestoreItem.id);
-          // Если есть локальный элемент с миниатюрой, но нет URL из Storage - сохраняем миниатюру
-          if (localItem && localItem.image && !firestoreItem.imageUrl) {
-            return { ...firestoreItem, image: localItem.image };
-          }
-          // Если есть URL из Storage - используем его
-          return firestoreItem;
+          
+          // Создаем объединенный элемент с данными из Firestore
+          return {
+            ...firestoreItem,
+            // Сохраняем imageUrl для использования при сохранении в избранное
+            imageUrl: firestoreItem.imageUrl || null,
+            // Также копируем в image для отображения (для обратной совместимости)
+            image: firestoreItem.imageUrl || localItem?.image || null
+          };
         });
         
         // Добавляем новые локальные элементы, которых еще нет в Firestore
@@ -143,16 +189,23 @@ export default function App() {
   // Ограничение размера истории
   useEffect(() => {
     const maxSize = getSetting("history", "maxHistorySize");
-    if (maxSize === -1) return; // Unlimited
+    if (maxSize === -1 || !user) return; // Unlimited или не авторизован
     
     if (localHistory.length > maxSize) {
-      const toRemove = localHistory.length - maxSize;
-      setLocalHistory((prev) => prev.slice(toRemove));
+      const toRemove = localHistory.slice(0, localHistory.length - maxSize);
+      const idsToRemove = toRemove.map(item => item.id);
       
-      // Note: Removed items are not deleted from Firestore automatically
-      // to preserve user data. They will be cleaned up by autoClear if enabled.
+      // Удаляем из локального state
+      setLocalHistory((prev) => prev.slice(-maxSize));
+      
+      // Удаляем из Firestore асинхронно
+      if (idsToRemove.length > 0) {
+        deleteOldMessages(idsToRemove).catch(error => {
+          logger.warn('Failed to delete old messages from Firestore:', error);
+        });
+      }
     }
-  }, [localHistory.length, getSetting, user]);
+  }, [localHistory.length, getSetting, user, deleteOldMessages]);
 
   // Автоматическая очистка истории
   useEffect(() => {
@@ -175,27 +228,35 @@ export default function App() {
     });
 
     if (toRemove.length > 0) {
+      const idsToRemove = toRemove.map(item => item.id);
+      
+      // Удаляем из локального state
       setLocalHistory((prev) => prev.filter((item) => {
         const itemDate = item.createdAt?.toMillis?.() || item.timestamp || 0;
         return itemDate >= cutoffDate;
       }));
+      
+      // Удаляем из Firestore асинхронно
+      deleteOldMessages(idsToRemove).catch(error => {
+        logger.warn('Failed to delete old messages from Firestore:', error);
+      });
     }
-  }, [localHistory, getSetting, user]);
+  }, [localHistory, getSetting, user, deleteOldMessages]);
 
   async function handleFile(file) {
     if (!file) return;
     
     // Валидация
     if (!VALID_TYPES.includes(file.type)) {
-      setToastMsg("Unsupported file format. Use JPG/PNG/WEBP.");
+      setToastMsg(translations.unsupportedFormat);
       return;
     }
     if (file.size > MAX_SIZE) {
-      setToastMsg("File too large (max 10MB).");
+      setToastMsg(translations.fileTooLarge);
       return;
     }
     if (isOffline) {
-      setToastMsg("You're offline. Try later.");
+      setToastMsg(translations.offline);
       return;
     }
     if (!hasEnough(GENERATION_COST)) {
@@ -224,7 +285,7 @@ export default function App() {
         const compressedBlob = await compressImage(file, { quality: 0.8 });
         processedFile = new File([compressedBlob], file.name, { type: compressedBlob.type || file.type });
       } catch (error) {
-        console.warn("Failed to compress image, using original:", error);
+        logger.warn("Failed to compress image, using original:", error);
       }
     }
 
@@ -246,6 +307,10 @@ export default function App() {
       const quality = getSetting("images", "highQualityPreview") ? 800 : 400;
       const thumbnail = await createThumbnail(processedFile, quality);
       
+      if (!thumbnail || thumbnail.length < 50) {
+        throw new Error('Failed to create thumbnail');
+      }
+      
       // Сохраняем файл для последующей загрузки в Storage
       uploadedFilesRef.current.set(id, processedFile);
       
@@ -262,6 +327,7 @@ export default function App() {
       setIsRegenerating(false);
       startGeneration(processedFile, id, false);
     } catch (error) {
+      logger.error('Failed to process image:', error);
       setToastMsg("Failed to process image. Please try again.");
       const result = await add(GENERATION_COST);
       updateCredits(result.newBalance);
@@ -273,7 +339,7 @@ export default function App() {
     const controller = new AbortController();
     controllerRef.current = controller;
     setIsGenerating(true);
-    setStatusPhase(t("analysing"));
+    setStatusPhase(translations.analysing);
 
     generatePromptFromImage(file, {
       signal: controller.signal,
@@ -285,37 +351,20 @@ export default function App() {
       },
     })
       .then(async (text) => {
-        // Получаем текущий entry перед обновлением
-        const currentEntry = localHistory.find((h) => h.id === id);
+        // Получаем актуальный entry и обновляем state в одном вызове (исправление Race Condition)
+        let currentEntry;
+        setLocalHistory((prev) => {
+          currentEntry = prev.find((h) => h.id === id);
+          return prev.map((h) => h.id === id ? { ...h, prompt: text, status: GENERATION_STATUS.DONE } : h);
+        });
+        
         const imageUrl = currentEntry?.imageUrl || currentEntry?.image;
-        
-        // Обновляем локальное состояние
-        setLocalHistory((prev) =>
-          prev.map((h) => h.id === id ? { ...h, prompt: text, status: GENERATION_STATUS.DONE } : h)
-        );
-        
-        // Автоматическое сохранение промпта, если включено
-        const autoSavePrompts = getSetting("generation", "autoSavePrompts");
-        if (autoSavePrompts && text && imageUrl && !isPromptSaved(id)) {
-          try {
-            await addSavedPrompt({
-              id: `${id}-auto`,
-              image: imageUrl,
-              prompt: text
-            });
-          } catch (error) {
-            console.warn("Failed to auto-save prompt:", error);
-          }
-        }
-        
-        // Сохраняем в Firestore с изображением (только если это не регенерация или изображение еще не сохранено)
         const uploadedFile = uploadedFilesRef.current.get(id);
-        const entry = localHistory.find((h) => h.id === id);
-        const needsImageUpload = uploadedFile && !entry?.imageUrl;
+        const needsImageUpload = uploadedFile && !currentEntry?.imageUrl;
         
         if (needsImageUpload && user) {
           try {
-            await addChatMessage({
+            const result = await addChatMessage({
               id,
               imageFile: uploadedFile,
               prompt: text,
@@ -323,18 +372,23 @@ export default function App() {
               phases: []
             });
             // После успешной загрузки, URL из Storage будет обновлен в useUserData
-            // Файл можно удалить из памяти, миниатюра останется в localHistory
             uploadedFilesRef.current.delete(id);
+            
+            // Автосохранение с URL из Storage или миниатюрой
+            const finalImageUrl = result?.imageUrl || imageUrl;
+            await autoSavePromptIfNeeded(id, text, finalImageUrl);
           } catch (storageError) {
             // Ошибка загрузки в Storage - показываем предупреждение, но не блокируем работу
-            console.warn('Failed to save image to Storage:', storageError);
+            logger.warn('Failed to save image to Storage:', storageError);
             if (storageError.message?.includes('CORS')) {
               setToastMsg("⚠️ Image upload failed (CORS). Check Firebase Storage rules. See CORS_FIX.md");
             } else {
               setToastMsg("⚠️ Image upload failed. Prompt saved, but image may not sync.");
             }
-            // Продолжаем работу без изображения в Storage
             uploadedFilesRef.current.delete(id);
+            
+            // Автосохранение с миниатюрой
+            await autoSavePromptIfNeeded(id, text, imageUrl);
           }
         } else if (isRegenerating && user) {
           // При регенерации обновляем только промпт, изображение уже есть
@@ -344,9 +398,15 @@ export default function App() {
               status: GENERATION_STATUS.DONE,
               phases: []
             });
+            
+            // Автосохранение при регенерации
+            await autoSavePromptIfNeeded(id, text, imageUrl);
           } catch (error) {
-            console.warn('Failed to update chat message:', error);
+            logger.warn('Failed to update chat message:', error);
           }
+        } else {
+          // Если изображение уже загружено или пользователь не авторизован
+          await autoSavePromptIfNeeded(id, text, imageUrl);
         }
         
         setStatusPhase("");
@@ -441,7 +501,7 @@ export default function App() {
       try {
         file = await downloadImageAsFile(entry.imageUrl, `regen-${id}.webp`);
       } catch (error) {
-        console.warn('Failed to load image from Storage:', error);
+        logger.warn('Failed to load image from Storage:', error);
       }
     }
     
@@ -451,7 +511,7 @@ export default function App() {
         // Конвертируем миниатюру обратно в файл
         file = await dataURLtoFile(entry.image, `regen-${id}.png`);
       } catch (error) {
-        console.warn('Failed to convert thumbnail to file:', error);
+        logger.warn('Failed to convert thumbnail to file:', error);
       }
     }
     
@@ -499,6 +559,22 @@ export default function App() {
     }, 50);
   }, []);
 
+  // Автосохранение промпта при включенной настройке
+  const autoSavePromptIfNeeded = useCallback(async (id, text, imageUrl) => {
+    const autoSavePrompts = getSetting("generation", "autoSavePrompts");
+    if (autoSavePrompts && text && imageUrl && !isPromptSaved(id)) {
+      try {
+        await addSavedPrompt({
+          id,
+          image: imageUrl,
+          prompt: text
+        });
+      } catch (error) {
+        logger.warn("Failed to auto-save prompt:", error);
+      }
+    }
+  }, [getSetting, isPromptSaved, addSavedPrompt]);
+
   const handleNewChat = useCallback(async () => {
     controllerRef.current?.abort?.();
     controllerRef.current = null;
@@ -530,12 +606,13 @@ export default function App() {
     } else {
       // Добавляем в сохраненные
       const uploadedFile = uploadedFilesRef.current.get(id);
-      // Используем URL из Storage, если есть, иначе миниатюру
+      // Приоритет: imageUrl (Storage URL) > image (Data URL миниатюра)
       const imageToSave = entry.imageUrl || entry.image || null;
+      
       await addSavedPrompt({
         id: entry.id,
-        image: imageToSave,
-        imageFile: uploadedFile, // Файл для загрузки в Storage, если еще не загружен
+        image: imageToSave, // Storage URL или Data URL
+        imageFile: uploadedFile, // Файл (если еще в памяти) - для создания копии
         prompt: entry.prompt
       });
     }
@@ -566,7 +643,7 @@ export default function App() {
     try {
       await logout();
     } catch (error) {
-      console.error("Logout failed", error);
+      logger.error("Logout failed", error);
       setToastMsg("Could not sign out");
     }
   }, [logout]);
@@ -580,7 +657,7 @@ export default function App() {
         height: '100vh'
       }}>
         <DotLottieReact
-          src="https://lottie.host/620b0535-fab7-497b-a959-eaa1aa68c8c7/mxvQ1zMQvz.lottie"
+          src={LOADING_ANIMATION_URL}
           loop
           autoplay
         />
@@ -593,7 +670,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${activeTab === TABS.FAVORITES ? "favorites-active" : ""}`}>
+    <div className={`app ${activeTab === TABS.SAVED ? "saved-active" : ""}`}>
       <div className={`header ${localHistory.length === 0 && activeTab === TABS.CHAT ? "header-centered" : ""}`}>
         <div className="header-left">
           <span className="header-credits">{formatCredits(credits)} {t("credits")}</span>
@@ -611,8 +688,11 @@ export default function App() {
       </div>
 
       {/* Chat Tab */}
-      {activeTab === TABS.CHAT && (
-        <div ref={chatRef} className={`chat ${localHistory.length === 0 ? "chat-empty" : ""}`}>
+      <div 
+        ref={chatRef} 
+        className={`chat ${localHistory.length === 0 ? "chat-empty" : ""} tab-content ${activeTab === TABS.CHAT ? 'tab-active' : 'tab-hidden'}`}
+        style={{ display: activeTab === TABS.CHAT ? 'flex' : 'none' }}
+      >
           {localHistory.length === 0 && (
             <div className="uploader-block">
               <ImageUploader onFile={handleFile} />
@@ -624,17 +704,29 @@ export default function App() {
 
           {localHistory.map((item) => {
             const isSaved = isPromptSaved(item.id);
+            // Используем image (которое может содержать imageUrl из Firestore или локальную миниатюру)
+            const imageSrc = item.image || item.imageUrl;
+            
             return (
               <React.Fragment key={item.id}>
                 {/* user message */}
                 <div className="message-row user">
                   <div className="message user-msg">
-                    {(item.image || item.imageUrl) && (
+                    {imageSrc && (
                       <img
-                        src={item.imageUrl || item.image}
+                        src={imageSrc}
                         alt="Uploaded image preview"
                         className="preview"
-                        onClick={() => setModalImage(item.imageUrl || item.image)}
+                        loading="lazy"
+                        onClick={() => setModalImage(imageSrc)}
+                        onError={(e) => {
+                          logger.error('❌ Image failed to load:', { 
+                            id: item.id, 
+                            srcType: imageSrc.startsWith('data:') ? 'Data URL' : 'Storage URL',
+                            srcPreview: imageSrc?.substring(0, 100),
+                            error: e.type 
+                          });
+                        }}
                       />
                     )}
                   </div>
@@ -661,12 +753,13 @@ export default function App() {
               </React.Fragment>
             );
           })}
-        </div>
-      )}
+      </div>
 
       {/* Saved Tab */}
-      {activeTab === TABS.FAVORITES && (
-        <div className="saved-view">
+      <div 
+        className={`saved-view tab-content ${activeTab === TABS.SAVED ? 'tab-active' : 'tab-hidden'}`}
+        style={{ display: activeTab === TABS.SAVED ? 'block' : 'none' }}
+      >
           {savedPrompts.length === 0 ? (
             <div className="saved-empty">
               <p>{t("noSavedPrompts")}</p>
@@ -676,7 +769,10 @@ export default function App() {
             </div>
           ) : (
             <div className="saved-grid">
-              {savedPrompts.map((item) => (
+              {savedPrompts.map((item) => {
+                const savedImageSrc = item.imageUrl || item.image;
+                
+                return (
                 <div key={item.id} className="saved-card">
                   <button
                     className="saved-delete-btn"
@@ -691,17 +787,33 @@ export default function App() {
                       style={{ color: '#ef4444' }}
                     />
                   </button>
-                  {(item.imageUrl || item.image) && (
+                  {savedImageSrc && (
                     <img
-                      src={item.imageUrl || item.image}
+                      src={savedImageSrc}
                       alt="Saved prompt preview"
                       className="saved-image"
-                      onClick={() => setModalImage(item.imageUrl || item.image)}
+                      loading="lazy"
+                      onClick={() => setModalImage(savedImageSrc)}
+                      onError={(e) => {
+                        logger.error('❌ Saved image failed to load:', { 
+                          id: item.id,
+                          srcType: savedImageSrc.startsWith('data:') ? 'Data URL' : 'Storage URL',
+                          srcPreview: savedImageSrc?.substring(0, 100),
+                          error: e.type 
+                        });
+                      }}
                     />
                   )}
                   <div 
                     className="saved-prompt-area"
                     onClick={() => handleCopy(item.prompt)}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }}
+                    onFocus={(e) => e.currentTarget.blur()}
+                    tabIndex={-1}
+                    style={{ outline: 'none', WebkitTapHighlightColor: 'transparent', background: 'transparent' }}
                   >
                     <div className={`saved-prompt promptText ${expandedSavedPrompts.has(item.id) ? "expanded" : "collapsed"}`}>
                       {item.prompt}
@@ -734,15 +846,18 @@ export default function App() {
                     )}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
-        </div>
-      )}
+      </div>
 
       {/* Settings Tab */}
       {activeTab === TABS.SETTINGS && (
-        <Settings onLogout={handleLogout} />
+        <Settings 
+          onLogout={handleLogout} 
+          isActive={activeTab === TABS.SETTINGS}
+        />
       )}
 
       {/* Credit Confirmation Modal */}
@@ -819,15 +934,15 @@ export default function App() {
         {/* Bottom Navigation Bar */}
         <div className="bottom-navbar">
         <button
-          className={`bottom-nav-tab ${activeTab === TABS.FAVORITES ? "active" : ""}`}
-          onClick={() => setActiveTab(TABS.FAVORITES)}
+          className={`bottom-nav-tab ${activeTab === TABS.SAVED ? "active" : ""}`}
+          onClick={() => setActiveTab(TABS.SAVED)}
         >
-          {activeTab === TABS.FAVORITES ? (
-            <FavoritesActive width={20} height={20} />
+          {activeTab === TABS.SAVED ? (
+            <SavedActive width={20} height={20} />
           ) : (
-            <FavoritesInactive width={20} height={20} />
+            <SavedInactive width={20} height={20} />
           )}
-          <span>{t("favorites")}</span>
+          <span>{t("saved")}</span>
         </button>
         <button
           className={`bottom-nav-tab ${activeTab === TABS.CHAT ? "active" : ""}`}
@@ -854,13 +969,14 @@ export default function App() {
         </div>
       </div>
 
-      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg("")} isFavoritesActive={activeTab === TABS.FAVORITES} />}
+      {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg("")} isSavedActive={activeTab === TABS.SAVED} />}
       
       {undoData && (
         <UndoSnackbar
           message="Removed from saved"
           onUndo={handleUndo}
           onClose={() => setUndoData(null)}
+          isSavedActive={activeTab === TABS.SAVED}
         />
       )}
       

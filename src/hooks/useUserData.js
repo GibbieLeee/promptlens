@@ -13,7 +13,8 @@ import {
   deleteSavedPrompt,
   saveChatMessage,
   updateChatMessage,
-  clearChatHistory
+  clearChatHistory,
+  deleteChatMessages
 } from '../utils/firestoreData';
 
 export function useUserData() {
@@ -148,6 +149,7 @@ export function useUserData() {
 
   /**
    * Добавляет сообщение в историю чата
+   * @returns {Promise<{id: string, imageUrl: string | null}> | undefined} Результат сохранения с imageUrl
    */
   const addChatMessage = useCallback(
     async (messageData) => {
@@ -176,9 +178,13 @@ export function useUserData() {
             )
           );
         }
+        
+        // Возвращаем результат для использования в вызывающем коде
+        return result;
       } catch (error) {
         console.error('Failed to save chat message:', error);
         // Не откатываем, так как чат может работать локально
+        return null;
       }
     },
     [user]
@@ -239,6 +245,21 @@ export function useUserData() {
     }
   }, [user, chatHistory]);
 
+  /**
+   * Удаляет старые сообщения из истории чата
+   * @param {string[]} messageIds - Массив ID сообщений для удаления
+   */
+  const deleteOldMessages = useCallback(async (messageIds) => {
+    if (!user || !messageIds.length) return;
+
+    try {
+      // Удаляем из Firestore
+      await deleteChatMessages(user.uid, messageIds);
+    } catch (error) {
+      console.error('Failed to delete old messages:', error);
+    }
+  }, [user]);
+
   // ============================================
   // КРЕДИТЫ
   // ============================================
@@ -267,6 +288,7 @@ export function useUserData() {
     addChatMessage,
     updateChatMessage: updateChatMessageLocal,
     clearChat,
+    deleteOldMessages,
 
     // Методы для кредитов
     updateCredits

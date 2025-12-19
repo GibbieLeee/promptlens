@@ -119,35 +119,22 @@ gsutil cors get gs://YOUR_STORAGE_BUCKET
 
 ## Текущая конфигурация CORS
 
-Файл `cors.json` уже настроен для разрешения запросов с:
+Файл `cors.json` настроен для разрешения запросов с:
 - `http://localhost:5173` (Vite dev server)
 - `http://localhost:3000` (альтернативный порт)
 - `http://127.0.0.1:5173` (IP адрес localhost)
+- `https://promptlens-zeta.vercel.app` (production домен)
+- `https://promptlens-gibbie.vercel.app` (альтернативный production домен)
 
-## Дополнительные шаги для production
+## ⚠️ ВАЖНО: Production домены уже добавлены
 
-Для production окружения, добавьте ваш домен в `cors.json`:
+Production домены уже добавлены в `cors.json`. Если вы добавили новый домен, **обязательно примените конфигурацию снова**:
 
-```json
-[
-  {
-    "origin": [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "http://127.0.0.1:5173",
-      "https://your-production-domain.com"
-    ],
-    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
-    "maxAgeSeconds": 3600,
-    "responseHeader": ["Content-Type", "Authorization", "x-goog-resumable"]
-  }
-]
-```
-
-Затем снова примените:
 ```bash
 gsutil cors set cors.json gs://YOUR_STORAGE_BUCKET
 ```
+
+Или через Google Cloud Console (см. Вариант 2 выше).
 
 ## Важные замечания
 

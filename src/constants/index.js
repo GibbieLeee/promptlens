@@ -20,7 +20,10 @@ export const GENERATION_STATUS = {
 // Вкладки приложения
 export const TABS = {
   CHAT: "chat",
-  FAVORITES: "favorites",
+  SAVED: "saved",
   SETTINGS: "settings",
 };
+
+// Lottie анимация для загрузки
+export const LOADING_ANIMATION_URL = "https://lottie.host/620b0535-fab7-497b-a959-eaa1aa68c8c7/mxvQ1zMQvz.lottie";
 

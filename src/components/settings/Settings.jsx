@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   User,
   LogOut,
@@ -27,15 +27,26 @@ import ToggleSwitch from "./ToggleSwitch";
 import SettingsModal from "./SettingsModal";
 import ConfirmModal from "./ConfirmModal";
 
-export default function Settings({ onLogout }) {
+export default function Settings({ onLogout, isActive = true }) {
   const { user } = useAuth();
   const { theme, setThemeMode, themes } = useTheme();
-  const { settings, updateSetting, getSetting } = useSettings();
+  const { settings, updateSetting, getSetting, isLoading: settingsLoading } = useSettings();
   const { clearChat, chatHistory } = useUserData();
   const { t } = useTranslation();
   const [isClearingHistory, setIsClearingHistory] = useState(false);
   const [modalOpen, setModalOpen] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  // Синхронизация темы из настроек с ThemeContext при загрузке
+  useEffect(() => {
+    if (!settingsLoading && settings?.appearance?.theme) {
+      const savedTheme = settings.appearance.theme;
+      // Обновляем тему в ThemeContext, если она отличается и является валидной
+      if (savedTheme !== theme && (savedTheme === themes.DARK || savedTheme === themes.LIGHT || savedTheme === themes.SYSTEM)) {
+        setThemeMode(savedTheme);
+      }
+    }
+  }, [settings?.appearance?.theme, settingsLoading, theme, setThemeMode, themes.DARK, themes.LIGHT, themes.SYSTEM]);
 
   const handleClearHistory = useCallback(async () => {
     if (!window.confirm(t("clearHistoryConfirm"))) {
@@ -102,7 +113,7 @@ export default function Settings({ onLogout }) {
   };
 
   return (
-    <div className="settings-view">
+    <div className={`settings-view tab-content ${isActive ? 'tab-active' : 'tab-hidden'}`}>
       {/* Account Group */}
       <SettingsGroup title={t("account")}>
         <div className="settings-group-card">
@@ -254,6 +265,7 @@ export default function Settings({ onLogout }) {
                 className={`settings-modal-option ${theme === option.value ? "active" : ""}`}
                 onClick={() => {
                   setThemeMode(option.value);
+                  updateSetting("appearance", "theme", option.value);
                   setModalOpen(null);
                 }}
               >

@@ -90,5 +90,5 @@ try {
 }
 
 Write-Host ""
-Write-Host "Готово!" -ForegroundColor Green
+Write-Host "Done!" -ForegroundColor Green
 

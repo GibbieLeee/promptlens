@@ -63,7 +63,7 @@ Visit `http://localhost:5173`
 1. Sign up / Log in
 2. Upload an image (JPG, PNG, WEBP, max 10MB)
 3. Wait for generation (~5-15 seconds)
-4. Copy the prompt or save to favorites
+4. Copy the prompt or save it
 5. Use in Midjourney, DALL-E, Stable Diffusion, etc.
 
 ## Configuration

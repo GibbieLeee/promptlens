@@ -35,6 +35,7 @@
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-transform: transform 0.2s ease;
   --transition-transform-shadow: transform 0.2s ease, box-shadow 0.2s ease;
+  --transition-fade: opacity 0.3s ease, transform 0.3s ease;
 }
 
 /* Light Theme Color Palette */
@@ -74,6 +75,7 @@
   --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-transform: transform 0.2s ease;
   --transition-transform-shadow: transform 0.2s ease, box-shadow 0.2s ease;
+  --transition-fade: opacity 0.3s ease, transform 0.3s ease;
   /* Light theme specific colors */
   --new-chat-btn-bg: #F2EEFF; /* New chat button background */
   --new-chat-btn-text: #7B4DFF; /* New chat button text */
@@ -143,6 +145,24 @@ body::before {
   background: var(--bg);
   z-index: -1;
   opacity: 0.03;
+}
+
+/* === TAB ANIMATIONS === */
+.tab-content {
+  transition: var(--transition-fade);
+  will-change: opacity, transform;
+}
+
+.tab-hidden {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+.tab-active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 body {
@@ -1247,9 +1267,20 @@ body {
   border: 1px solid var(--border-color);
 }
 
-/* Toast position adjustment for Favorites tab (no footer buttons) */
-.toast.favorites-active {
+/* Toast position adjustment for Saved tab (no footer buttons) */
+.toast.saved-active {
   bottom: 120px;
+}
+
+/* Light theme: white text and icons in toast */
+:root.light-theme .toast {
+  color: #ffffff;
+}
+
+:root.light-theme .toast svg,
+:root.light-theme .toast * {
+  color: #ffffff;
+  fill: #ffffff;
 }
 
 @media (max-width: 480px) {
@@ -1263,7 +1294,7 @@ body {
     white-space: normal;
   }
   
-  .toast.favorites-active {
+  .toast.saved-active {
     bottom: 100px;
   }
 }
@@ -1274,7 +1305,7 @@ body {
     max-width: 500px;
   }
   
-  .toast.favorites-active {
+  .toast.saved-active {
     bottom: 130px;
   }
 }
@@ -1285,7 +1316,7 @@ body {
     max-width: 600px;
   }
   
-  .toast.favorites-active {
+  .toast.saved-active {
     bottom: 140px;
   }
 }
@@ -1310,7 +1341,8 @@ body {
   position: fixed;
   bottom: 180px;
   left: 50%;
-  transform: translateX(-50%);
+  right: auto;
+  transform: translateX(-50%) !important;
   background: rgba(42, 42, 42, 0.95);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -1325,10 +1357,15 @@ body {
   gap: 12px;
   box-shadow: none;
   border: 1px solid var(--border-color);
-  animation: slideUp 0.3s ease-out;
   width: max-content;
   max-width: min(calc(100vw - 32px), 400px);
   box-sizing: border-box;
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+/* Undo snackbar position adjustment for Saved tab (no footer buttons) */
+.undo-snackbar.saved-active {
+  bottom: 120px;
 }
 
 .undo-snackbar-message {
@@ -1360,22 +1397,52 @@ body {
   transform: scale(0.95);
 }
 
+/* Light theme: white text and icons in undo snackbar */
+:root.light-theme .undo-snackbar {
+  color: #ffffff;
+}
+
+:root.light-theme .undo-snackbar-message {
+  color: #ffffff;
+}
+
+:root.light-theme .undo-snackbar-button {
+  color: #ffffff;
+}
+
+:root.light-theme .undo-snackbar-button svg {
+  color: #ffffff;
+  stroke: #ffffff;
+}
+
+:root.light-theme .undo-snackbar-button span {
+  color: #ffffff;
+}
+
 @keyframes slideUp {
-  from {
+  0% {
     opacity: 0;
-    transform: translateX(-50%) translateY(20px);
+    transform: translateX(-50%) translateY(20px) !important;
   }
-  to {
+  100% {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0) !important;
   }
 }
 
 @media (max-width: 480px) {
   .undo-snackbar {
     bottom: 160px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) !important;
     max-width: calc(100vw - 32px);
+    width: auto;
     padding: 10px 14px;
+  }
+  
+  .undo-snackbar.saved-active {
+    bottom: 100px;
   }
   
   .undo-snackbar-message {
@@ -1388,12 +1455,20 @@ body {
     bottom: 190px;
     max-width: 500px;
   }
+  
+  .undo-snackbar.saved-active {
+    bottom: 130px;
+  }
 }
 
 @media (min-width: 1024px) {
   .undo-snackbar {
     bottom: 200px;
     max-width: 600px;
+  }
+  
+  .undo-snackbar.saved-active {
+    bottom: 140px;
   }
 }
 
@@ -2201,6 +2276,12 @@ body {
   gap: 16px;
   padding: 20px;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Скрытие Settings когда вкладка неактивна */
+.settings-view.tab-hidden {
+  display: none;
 }
 
 .settings-card {
@@ -3100,19 +3181,57 @@ button.saved-delete-btn svg {
   padding: 12px;
   margin-top: 8px;
   border-radius: 8px;
-  transition: background 0.2s ease;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  transition: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
-.saved-prompt-area:hover {
+.saved-prompt-area:hover:not(:active):not(:focus):not(:focus-visible):not(:focus-within) {
   background: rgba(123, 77, 255, 0.05);
+}
+
+.saved-prompt-area:active,
+.saved-prompt-area:active:hover,
+.saved-prompt-area:active:focus,
+.saved-prompt-area:active:focus-visible,
+.saved-prompt-area:active:focus-within,
+.saved-prompt-area:focus,
+.saved-prompt-area:focus-visible,
+.saved-prompt-area:focus-within {
+  background: transparent !important;
+  background-color: transparent !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+  border: none !important;
+  transition: none !important;
 }
 
 :root.light-theme .saved-prompt-area:hover {
   background: transparent;
 }
 
-:root.light-theme .saved-prompt-area:active {
-  background: transparent;
+:root.light-theme .saved-prompt-area:active,
+:root.light-theme .saved-prompt-area:active:hover,
+:root.light-theme .saved-prompt-area:focus,
+:root.light-theme .saved-prompt-area:focus-visible,
+:root.light-theme .saved-prompt-area:focus-within {
+  background: transparent !important;
+  background-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+  border: none !important;
+  transition: none !important;
 }
 
 .saved-prompt {

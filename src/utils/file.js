@@ -2,6 +2,9 @@
  * Утилиты для работы с файлами
  */
 
+// Разрешенные MIME типы для изображений
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 /**
  * Конвертирует Data URL в File объект
  * @param {string} dataurl - Data URL строка
@@ -16,6 +19,13 @@ export function dataURLtoFile(dataurl, filename) {
     const mimeMatch = arr[0].match(/:(.*?);/);
     if (!mimeMatch) return null;
     const mime = mimeMatch[1];
+    
+    // Валидация MIME типа
+    if (!ALLOWED_MIME_TYPES.includes(mime)) {
+      console.warn(`Invalid MIME type: ${mime}. Allowed types: ${ALLOWED_MIME_TYPES.join(', ')}`);
+      return null;
+    }
+    
     const bstr = atob(arr[1]);
     let n = bstr.length;
     const u8arr = new Uint8Array(n);

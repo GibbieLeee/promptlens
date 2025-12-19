@@ -4,7 +4,7 @@ export const translations = {
   en: {
     // Navigation
     chat: "Chat",
-    favorites: "Favorites",
+    saved: "Saved",
     settings: "Settings",
     
     // Common
@@ -95,7 +95,7 @@ export const translations = {
   ru: {
     // Navigation
     chat: "Чат",
-    favorites: "Избранное",
+    saved: "Сохраненное",
     settings: "Настройки",
     
     // Common
@@ -188,42 +188,42 @@ export const translations = {
   // Другие языки можно добавить позже
   es: {
     chat: "Chat",
-    favorites: "Favoritos",
+    saved: "Guardado",
     settings: "Configuración",
     // ... остальные переводы для испанского
   },
   
   fr: {
     chat: "Chat",
-    favorites: "Favoris",
+    saved: "Enregistré",
     settings: "Paramètres",
     // ... остальные переводы для французского
   },
   
   de: {
     chat: "Chat",
-    favorites: "Favoriten",
+    saved: "Gespeichert",
     settings: "Einstellungen",
     // ... остальные переводы для немецкого
   },
   
   zh: {
     chat: "聊天",
-    favorites: "收藏",
+    saved: "已保存",
     settings: "设置",
     // ... остальные переводы для китайского
   },
   
   ja: {
     chat: "チャット",
-    favorites: "お気に入り",
+    saved: "保存済み",
     settings: "設定",
     // ... остальные переводы для японского
   },
   
   ko: {
     chat: "채팅",
-    favorites: "즐겨찾기",
+    saved: "저장됨",
     settings: "설정",
     // ... остальные переводы для корейского
   },

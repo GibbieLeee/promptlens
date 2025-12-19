@@ -3,7 +3,8 @@ import { auth, googleProvider } from "../../firebase";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect
+  signInWithRedirect,
+  sendPasswordResetEmail
 } from "firebase/auth";
 
 export default function SignInModal({ onClose }) {
@@ -12,6 +13,8 @@ export default function SignInModal({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   // Detect if mobile browser → popup will fail
   // Более точная детекция: проверяем только реальные мобильные устройства
@@ -32,6 +35,32 @@ export default function SignInModal({ onClose }) {
     }
 
     setLoading(false);
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError("Please enter your email address first.");
+      return;
+    }
+
+    setResetLoading(true);
+    setError("");
+    setResetSent(false);
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetSent(true);
+    } catch (err) {
+      if (err.code === "auth/user-not-found") {
+        setError("No account found with this email address.");
+      } else if (err.code === "auth/invalid-email") {
+        setError("Invalid email address.");
+      } else {
+        setError(err.message || "Failed to send password reset email.");
+      }
+    }
+
+    setResetLoading(false);
   };
 
   const handleGoogle = async (e) => {
@@ -125,6 +154,11 @@ export default function SignInModal({ onClose }) {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !loading) {
+                  handleEmailLogin();
+                }
+              }}
               className="modal-input"
             />
             <button
@@ -136,6 +170,38 @@ export default function SignInModal({ onClose }) {
             </button>
           </div>
         </label>
+
+        {resetSent ? (
+          <div className="modal-success" style={{ 
+            padding: "12px", 
+            backgroundColor: "#d1fae5", 
+            color: "#065f46", 
+            borderRadius: "8px",
+            marginBottom: "16px",
+            fontSize: "14px"
+          }}>
+            ✓ Password reset email sent! Check your inbox and follow the instructions to reset your password.
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="modal-link"
+            onClick={handleResetPassword}
+            disabled={resetLoading || !email}
+            style={{
+              marginBottom: "16px",
+              fontSize: "14px",
+              color: "#3b82f6",
+              background: "none",
+              border: "none",
+              cursor: resetLoading || !email ? "not-allowed" : "pointer",
+              textDecoration: "underline",
+              padding: "8px 0"
+            }}
+          >
+            {resetLoading ? "Sending…" : "Forgot password?"}
+          </button>
+        )}
 
         <button
           className="modal-btn primary"

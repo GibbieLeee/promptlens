@@ -49,6 +49,15 @@ function arrayBufferToBase64(buffer) {
  * Генерация промпта прямо в браузере, без серверов
  */
 export async function generatePromptFromImage(file, { signal, onPhase } = {}) {
+  // Проверка API ключа перед выполнением
+  const currentApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!currentApiKey || currentApiKey === 'your_api_key_here' || currentApiKey.trim() === '') {
+    throw {
+      type: "api_key",
+      message: "⚠️ API key issue. Please update your Gemini API key."
+    };
+  }
+
   try {
     onPhase?.("Analysing image…");
 
@@ -79,27 +88,39 @@ export async function generatePromptFromImage(file, { signal, onPhase } = {}) {
   } catch (error) {
     console.error("Gemini error:", error);
     
+    // Извлекаем сообщение об ошибке из разных возможных мест
+    const errorMessage = error.message || error.cause?.message || error.toString() || '';
+    const errorStatus = error.status || error.cause?.status || error.response?.status;
+    const errorString = JSON.stringify(error).toLowerCase();
+    
+    // Проверяем ошибки API ключа (400 с API_KEY_INVALID или сообщениями об API key)
+    if (errorStatus === 400 && (
+        errorMessage.toLowerCase().includes("api key") ||
+        errorMessage.toLowerCase().includes("api_key") ||
+        errorString.includes("api_key_invalid") ||
+        errorString.includes("api key not valid") ||
+        errorString.includes("invalid api key")
+      )) {
+      throw {
+        type: "api_key",
+        message: "⚠️ API key issue. Please update your Gemini API key."
+      };
+    }
+    
+    // Проверяем ошибки 403 (доступ запрещен)
+    if (errorStatus === 403 || errorMessage.includes("403") || errorString.includes("forbidden")) {
+      throw {
+        type: "forbidden",
+        message: "⚠️ API key issue. Please update your Gemini API key."
+      };
+    }
+    
     // Проверяем географические ограничения
-    if (error.message?.includes("User location is not supported") || 
-        error.message?.includes("location") && error.status === 400) {
+    if (errorMessage.includes("User location is not supported") || 
+        (errorMessage.includes("location") && errorStatus === 400 && !errorString.includes("api_key"))) {
       throw {
         type: "location_restricted",
         message: "⚠️ Gemini API is not available in your region. Please use a VPN (US/UK/EU servers) and try again."
-      };
-    }
-    
-    // Проверяем специфичные ошибки API
-    if (error.message?.includes("API key")) {
-      throw {
-        type: "api_key",
-        message: "API key issue. Please check your Gemini API key in .env file."
-      };
-    }
-    
-    if (error.message?.includes("403") || error.status === 403) {
-      throw {
-        type: "forbidden",
-        message: "API access denied. Your API key may be invalid or leaked."
       };
     }
     
